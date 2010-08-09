@@ -1,0 +1,10 @@
+.project
+.pydevproject
+
+genotype_tools.py
+snp.py
+
+genome*
+
+data/genome*
+utils/*
