@@ -24,20 +24,27 @@ BASE_MAP = {
   "G": "C"
 }
 
+##
+# Fetch information from the database for the user's value for a neandertal 
+# SNP.
 def get_snp_info(nsnp, flipped=False):
+  # Score is the amount by which we increment the numerator and denominator of
+  # the neandertal score.
   snp_info = {"score": (0, 0)}
 
   query = "SELECT * FROM diseases.neandertal_snps WHERE rsid = %s;"
   db.execute(query, (nsnp.rsid,))
   res = db.fetchone()
 
+  # db.description is a list of tuples; the first element of each tuple is the 
+  # field name.
   for i, attribute_info in enumerate(db.description):
     snp_info[attribute_info[0]] = res[i]
 
   snp_info["user_alleles"] = nsnp.genotype
   heterozygote = snp_info["out_of_africa"] + snp_info["ancestral"]
 
-  # Homozygous homo neandertalensis.
+  # Homozygous homo neanderthalensis.
   if nsnp.genotype == 2 * snp_info["out_of_africa"]:
     snp_info["score"] = (2, 2)
 
@@ -54,10 +61,10 @@ def get_snp_info(nsnp, flipped=False):
       nsnp.genotype = "".join([BASE_MAP[a] for a in nsnp.genotype])
       get_snp_info(nsnp, True)
     else:
+      # Hmmm... make no adjustment to the running numerator or denominator for 
+      # this SNP, we couldn't match alleles. This ought never happen.
       print "Error occurred matching user SNP to",
       print "neandertal SNP %s!" % (nsnp.rsid,)
-      # Make no adjustment to the running numerator or denominator for this 
-      # SNP.
 
   return snp_info
 
@@ -93,20 +100,25 @@ sys.stdout.flush()
 user_snps = genotype_tools.FileUtils.read_genotype_file(user_genome_path)
 print "done!"
 
+##
+# Calculation begins at this point.
+results = {}
+
 database = mysql.connector.Connect(**DB_INFO)
 db = database.cursor()
-
 db.execute("SELECT rsid FROM diseases.neandertal_snps;")
-nrsids = [row[0] for row in db.fetchall()]
 
-results = {}
-for nrsid in nrsids:
+for nrsid in [row[0] for row in db.fetchall()]:
   user_nsnp = user_snps.get(nrsid, None)
+  
+  # We could not get this SNP directly: impute.
   if user_nsnp is None:
     user_nsnp = genotype_tools.impute_rsid_simple(user_snps, nrsid, population)
     print "Imputed %s -> %s." % (user_nsnp.nearest_SNP, user_nsnp.rsid,)
 
   snp_info = get_snp_info(user_nsnp)
+  # If we imputed, user_nsnp.rsid is the imputed rsid, and nearest_SNP is the
+  # rsid of the SNP we were imputing from (imputing for).
   if user_nsnp.nearest_SNP is not None:
     snp_info["imputed_from"] = user_nsnp.nearest_SNP
   results[user_nsnp.rsid] = snp_info
@@ -150,6 +162,8 @@ out_file.write("""
     </tr>
 """)
 
+# We just reserve the right to sort later, by changing the key function to
+# something meaningful (this code was extensively copied and pasted).
 for (rsid, snp_info) in sorted(
   results.items(), key=lambda v: v, reverse=True
 ):
@@ -168,6 +182,5 @@ for (rsid, snp_info) in sorted(
   out_file.write("</td>")
 
 out_file.write("</table></body></html>")
-
 out_file.close()
 subprocess.Popen(("open", out_file_name)).wait()
