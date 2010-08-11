@@ -148,9 +148,6 @@ out_file.write("""
 """ % (filename, population, nnumerator, ndenominator, 
        100 * nnumerator / float(ndenominator)))
 
-#chart_url = build_chart_url(el_running_odds)
-#out_file.write("<img src='%s'></img><br><br>" % (chart_url,))
-
 out_file.write("""
   <table border="1">
     <tr>
@@ -162,6 +159,7 @@ out_file.write("""
     </tr>
 """)
 
+##
 # We just reserve the right to sort later, by changing the key function to
 # something meaningful (this code was extensively copied and pasted).
 for (rsid, snp_info) in sorted(
